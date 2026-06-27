@@ -1,0 +1,95 @@
+buildscript {
+
+    repositories {
+        maven {
+            url = "https://plugins.gradle.org/m2/"
+        }
+    }
+    ext {
+        serenityVersion = '4.2.14'
+        cucumberVersion = '7.11.0'
+        JunitVersion = '5.9.3'
+        appiumVersion = '8.3.0'
+    }
+    dependencies {
+        classpath("net.serenity-bdd:serenity-gradle-plugin:$rootProject.ext.serenityVersion")
+        classpath("net.serenity-bdd:serenity-single-page-report:$rootProject.ext.serenityVersion")
+
+    }
+}
+plugins {
+    id 'java'
+    id 'org.gradle.test-retry' version '1.5.6'
+}
+
+
+repositories {
+    mavenCentral()
+}
+
+group = 'com.youtube'
+version = '1.0-SNAPSHOT'
+
+apply plugin: 'application'
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: "jacoco"
+apply plugin: 'idea'
+apply plugin: 'net.serenity-bdd.serenity-gradle-plugin'
+
+serenity {
+    reports = ["single-page-html"]
+}
+
+dependencies {
+
+    implementation "org.junit.jupiter:junit-jupiter-engine:$rootProject.ext.JunitVersion"
+    implementation "io.cucumber:cucumber-junit-platform-engine:$rootProject.ext.cucumberVersion"
+    implementation "io.cucumber:cucumber-java:$rootProject.ext.cucumberVersion"
+
+    implementation "net.serenity-bdd:serenity-core:$rootProject.ext.serenityVersion"
+    implementation "net.serenity-bdd:serenity-junit:$rootProject.ext.serenityVersion"
+    implementation "net.serenity-bdd:serenity-cucumber:$rootProject.ext.serenityVersion"
+    implementation "net.serenity-bdd:serenity-screenplay:$rootProject.ext.serenityVersion"
+    implementation "net.serenity-bdd:serenity-screenplay-webdriver:$rootProject.ext.serenityVersion"
+
+    implementation 'org.apache.logging.log4j:log4j-core:2.22.0'
+    implementation 'org.seleniumhq.selenium:selenium-java:4.13.0'
+    implementation "io.github.bonigarcia:webdrivermanager:6.2.0"
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.assertj:assertj-core:3.23.1'
+    testImplementation 'org.slf4j:slf4j-simple:2.0.3'
+    implementation 'net.sf.jt400:jt400:11.0'
+    implementation 'org.jvnet.com4j:com4j:20110320'
+    implementation 'org.apache.poi:poi-ooxml:5.2.3'
+    //implementation 'com.epam.healenium:hlm-selenium:3.3.5'
+
+}
+tasks.withType(Test).configureEach {
+    jvmArgs += [
+            "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED"
+    ]
+
+    boolean isCiServer = System.getenv().containsKey("CI")
+    retry {
+        maxRetries = 0
+        maxFailures = 100
+        failOnPassedAfterRetry = true
+    }
+
+    gradle.startParameter.continueOnFailure = true
+    finalizedBy('aggregate')
+}
+
+task openSerenityReport {
+    doLast {
+        def reportFile = file("${buildDir}/../target/site/serenity/index.html")
+        if (reportFile.exists()) {
+            java.awt.Desktop.getDesktop().browse(reportFile.toURI())
+        } else {
+            println "Reporte no encontrado en: ${reportFile.absolutePath}"
+        }
+    }
+}
+
+aggregate.finalizedBy(openSerenityReport)
